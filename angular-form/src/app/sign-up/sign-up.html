@@ -1,0 +1,48 @@
+<p-heading>Sign up</p-heading>
+
+<form class="form" [formGroup]="form" (ngSubmit)="submit()">
+  <p-input-email
+    *ngrxLet="form.controls.email as control"
+    [formControl]="control"
+    [label]="'E-mail'"
+    [message]="control.errors?.['message'] ?? ''"
+    [required]="true"
+    [state]="control.touched && control.errors ? 'error' : 'none'"
+  />
+
+  <p-input-password
+    *ngrxLet="form.controls.password as control"
+    [autoComplete]="'new-password'"
+    [formControl]="control"
+    [label]="'Password'"
+    [message]="control.errors?.['message'] ?? ''"
+    [required]="true"
+    [state]="control.touched && control.errors ? 'error' : 'none'"
+    [toggle]="true"
+  />
+
+  <p-input-password
+    *ngrxLet="form.controls.confirmPassword as control"
+    [autoComplete]="'new-password'"
+    [formControl]="control"
+    [label]="'Confirm password'"
+    [message]="control.errors?.['message'] ?? ''"
+    [required]="true"
+    [state]="control.touched && control.errors ? 'error' : 'none'"
+    [toggle]="true"
+  />
+
+  <div class="form-controls">
+    <p-button [type]="'button'" [variant]="'secondary'" (click)="cancel()">Cancel</p-button>
+    <p-button [loading]="isSubmitting()" [type]="'submit'">Submit</p-button>
+  </div>
+</form>
+
+<p-banner
+  [open]="banner().open"
+  [heading]="banner().heading"
+  [headingTag]="'h3'"
+  [description]="banner().description"
+  [state]="banner().state"
+  (dismiss)="dismissBanner()"
+/>
