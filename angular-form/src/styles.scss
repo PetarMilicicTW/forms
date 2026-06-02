@@ -13,7 +13,3 @@ body {
   box-sizing: border-box;
   border: 0 solid;
 }
-
-:is(p-accordion, p-banner, p-button, …):not(:defined) {
-  visibility: hidden;
-}
