@@ -27,8 +27,13 @@ export const CustomValidators = {
 
   patternPassword(): ValidatorFn {
     return (control: AbstractControl) => {
-      const specialChars = `!"#$%&/()=?'*+<>@;,:.\-_`;
-      const pattern = new RegExp(`^[A-Za-z\\d${specialChars}]+$`);
+      const letters = 'A-Za-z';
+      const numbers = '0-9';
+      const specialChars = `!"#$%&/()=?'*+<>@;,:.-_`;
+      const special = specialChars.replace('-', '\\-');
+      const pattern = new RegExp(
+        `^(?=.*[${letters}])(?=.*[${numbers}])(?=.*[${special}])[${letters}${numbers}${special}]+$`,
+      );
       const errors = Validators.pattern(pattern)(control);
       if (errors)
         errors['message'] = `Must include letters, numbers and ${specialChars} characters`;

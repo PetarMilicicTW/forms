@@ -28,8 +28,13 @@ export const CustomValidators = {
   },
 
   patternPassword(): Validator {
+    const letters = 'A-Za-z';
+    const numbers = '0-9';
     const specialChars = `!"#$%&/()=?'*+<>@;,:.-_`;
-    const pattern = new RegExp(`^[A-Za-z\\d${specialChars}]+$`);
+    const special = specialChars.replace('-', '\\-');
+    const pattern = new RegExp(
+      `^(?=.*[${letters}])(?=.*[${numbers}])(?=.*[${special}])[${letters}${numbers}${special}]+$`,
+    );
     return (value) =>
       isEmpty(value) || pattern.test(value)
         ? null

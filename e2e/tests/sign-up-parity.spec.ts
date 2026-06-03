@@ -88,7 +88,7 @@ const submit = (wait?: number): Step =>
   wait != null ? { action: 'submit', wait } : { action: 'submit' };
 const cancel = (): Step => ({ action: 'cancel' });
 const EMAIL = 'test@example.com';
-const PW = 'Password1';
+const PW = 'Password1!';
 
 const SCENARIOS: Scenario[] = [
   { name: 'initial-state', steps: [] },
@@ -99,7 +99,7 @@ const SCENARIOS: Scenario[] = [
   { name: 'password-required', steps: [set('E-mail', EMAIL), blur('Password')] },
   {
     name: 'password-minlength',
-    steps: [set('E-mail', EMAIL), set('Password', 'Abc12'), blur('Password')],
+    steps: [set('E-mail', EMAIL), set('Password', 'Ab1!'), blur('Password')],
   },
   {
     name: 'password-pattern-invalid-char',
@@ -108,6 +108,26 @@ const SCENARIOS: Scenario[] = [
   {
     name: 'password-pattern-wins-over-minlength',
     steps: [set('E-mail', EMAIL), set('Password', 'ab cd'), blur('Password')],
+  },
+  {
+    name: 'password-allows-hyphen',
+    steps: [set('E-mail', EMAIL), set('Password', 'Pass-word1'), blur('Password')],
+  },
+  {
+    name: 'password-rejects-bracket',
+    steps: [set('E-mail', EMAIL), set('Password', 'Pass[word1'), blur('Password')],
+  },
+  {
+    name: 'password-requires-letter',
+    steps: [set('E-mail', EMAIL), set('Password', '1234567!'), blur('Password')],
+  },
+  {
+    name: 'password-requires-number',
+    steps: [set('E-mail', EMAIL), set('Password', 'Password!'), blur('Password')],
+  },
+  {
+    name: 'password-requires-special',
+    steps: [set('E-mail', EMAIL), set('Password', 'Password1'), blur('Password')],
   },
   { name: 'valid-password-enables-confirm', steps: [set('E-mail', EMAIL), set('Password', PW)] },
   {
@@ -157,7 +177,7 @@ const SCENARIOS: Scenario[] = [
       set('E-mail', EMAIL),
       set('Password', PW),
       set('Confirm password', PW),
-      set('Password', 'Password12'),
+      set('Password', 'Password12!'),
     ],
   },
   {
