@@ -118,7 +118,7 @@ function reducer(state: FormState, action: Action): FormState {
   }
 }
 
-export function SignUp() {
+export function SignUpReducer() {
   const [state, dispatch] = useReducer(reducer, initialState);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [banner, setBanner] = useState<BannerMessage>({
@@ -166,12 +166,7 @@ export function SignUp() {
       if (submitCount.current % 2 === 1) {
         addMessage({ text: 'Fake success', state: 'success' });
       } else {
-        setBanner({
-          open: true,
-          heading: 'Error',
-          description: 'Fake error',
-          state: 'error',
-        });
+        setBanner({ open: true, heading: 'Error', description: 'Fake error', state: 'error' });
       }
     }, 1000);
   };
