@@ -76,26 +76,35 @@ function onBlur(field: Field): void {
   blurred[field] = true;
 }
 
-function submit(): void {
+function fakeSubmit(): Promise<string> {
+  return new Promise((resolve, reject) => {
+    window.setTimeout(() => {
+      submitCount++;
+      if (submitCount % 2 === 1) resolve('Fake success');
+      else reject(new Error('Fake error'));
+    }, 1000);
+  });
+}
+
+async function submit(): Promise<void> {
   if (!signUpSchema.safeParse(values).success) {
     submitAttempted.value = true;
     return;
   }
   isSubmitting.value = true;
-  window.setTimeout(() => {
-    submitCount++;
+  try {
+    const result = await fakeSubmit();
+    addMessage({ text: result, state: 'success' });
+  } catch (error) {
+    Object.assign(banner, {
+      open: true,
+      heading: 'Error',
+      description: (error as Error).message,
+      state: 'error',
+    });
+  } finally {
     isSubmitting.value = false;
-    if (submitCount % 2 === 1) {
-      addMessage({ text: 'Fake success', state: 'success' });
-    } else {
-      Object.assign(banner, {
-        open: true,
-        heading: 'Error',
-        description: 'Fake error',
-        state: 'error',
-      });
-    }
-  }, 1000);
+  }
 }
 
 function cancel(): void {

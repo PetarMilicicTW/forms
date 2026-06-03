@@ -2,7 +2,7 @@ import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { LetDirective } from '@ngrx/component';
 import { PorscheDesignSystemModule, ToastManager } from '@porsche-design-system/components-angular';
-import { delay, distinctUntilChanged, of, startWith, tap } from 'rxjs';
+import { delay, distinctUntilChanged, map, of, startWith, tap } from 'rxjs';
 import { SubSink } from 'subsink';
 import { BannerMessage } from '../shared/banner-types';
 import { CustomValidators } from './custom-validators';
@@ -49,19 +49,26 @@ export class SignUpComponent {
     this.subSink.sink = of(true)
       .pipe(
         delay(1000),
-        tap(() => {
+        map(() => {
           this.submitCount++;
-          this.isSubmitting.set(false);
-          if (this.submitCount % 2 === 1) {
-            this.toastManager.addMessage({ text: 'Fake success', state: 'success' });
-          } else {
+          if (this.submitCount % 2 === 1) return 'Fake success';
+          else throw new Error('Fake error');
+        }),
+        tap({
+          next: (result) => {
+            this.toastManager.addMessage({ text: result, state: 'success' });
+          },
+          error: (e: Error) => {
             this.banner.set({
               open: true,
               heading: 'Error',
-              description: 'Fake error',
+              description: e.message,
               state: 'error',
             });
-          }
+          },
+          finalize: () => {
+            this.isSubmitting.set(false);
+          },
         }),
       )
       .subscribe();

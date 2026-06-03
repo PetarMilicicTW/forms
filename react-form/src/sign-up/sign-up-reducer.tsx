@@ -152,7 +152,16 @@ export function SignUpReducer() {
 
   const dismissBanner = (): void => setBanner((current) => ({ ...current, open: false }));
 
-  const submit = (event: FormEvent): void => {
+  const fakeSubmit = (): Promise<string> =>
+    new Promise((resolve, reject) => {
+      setTimeout(() => {
+        submitCount.current++;
+        if (submitCount.current % 2 === 1) resolve('Fake success');
+        else reject(new Error('Fake error'));
+      }, 1000);
+    });
+
+  const submit = async (event: FormEvent): Promise<void> => {
     event.preventDefault();
     if (!formValid) {
       dispatch({ type: 'touchAll' });
@@ -160,15 +169,14 @@ export function SignUpReducer() {
     }
 
     setIsSubmitting(true);
-    setTimeout(() => {
-      submitCount.current++;
+    try {
+      const result = await fakeSubmit();
+      addMessage({ text: result, state: 'success' });
+    } catch (error) {
+      setBanner({ open: true, heading: 'Error', description: (error as Error).message, state: 'error' });
+    } finally {
       setIsSubmitting(false);
-      if (submitCount.current % 2 === 1) {
-        addMessage({ text: 'Fake success', state: 'success' });
-      } else {
-        setBanner({ open: true, heading: 'Error', description: 'Fake error', state: 'error' });
-      }
-    }, 1000);
+    }
   };
 
   return (

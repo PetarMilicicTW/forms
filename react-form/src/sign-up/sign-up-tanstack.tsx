@@ -38,21 +38,29 @@ export function SignUpTanstack() {
 
   const dismissBanner = (): void => setBanner((current) => ({ ...current, open: false }));
 
-  const submit = (): void => {
+  const fakeSubmit = (): Promise<string> =>
+    new Promise((resolve, reject) => {
+      setTimeout(() => {
+        submitCount.current++;
+        if (submitCount.current % 2 === 1) resolve('Fake success');
+        else reject(new Error('Fake error'));
+      }, 1000);
+    });
+
+  const submit = async (): Promise<void> => {
     if (!signUpSchema.safeParse(form.state.values).success) {
       setSubmitAttempted(true);
       return;
     }
     setIsSubmitting(true);
-    setTimeout(() => {
-      submitCount.current++;
+    try {
+      const result = await fakeSubmit();
+      addMessage({ text: result, state: 'success' });
+    } catch (error) {
+      setBanner({ open: true, heading: 'Error', description: (error as Error).message, state: 'error' });
+    } finally {
       setIsSubmitting(false);
-      if (submitCount.current % 2 === 1) {
-        addMessage({ text: 'Fake success', state: 'success' });
-      } else {
-        setBanner({ open: true, heading: 'Error', description: 'Fake error', state: 'error' });
-      }
-    }, 1000);
+    }
   };
 
   const cancel = (): void => {
