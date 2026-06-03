@@ -21,7 +21,10 @@ export function SignUpTanstack() {
     description: '',
     state: 'info',
   });
-  // Errors only surface once a field is touched, or after a submit attempt.
+  // Errors only surface once a field is blurred, or after a submit attempt.
+  // NOTE: gate on `meta.isBlurred`, NOT `meta.isTouched` — TanStack flips
+  // `isTouched` on change, which would show errors while typing (Angular only
+  // shows them on blur). Verified against the Angular form via differential test.
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const submitCount = useRef(0);
@@ -105,7 +108,7 @@ export function SignUpTanstack() {
                     const show =
                       enabled.email &&
                       !!messageOf('email') &&
-                      (field.state.meta.isTouched || submitAttempted);
+                      (field.state.meta.isBlurred || submitAttempted);
                     return (
                       <PInputEmail
                         name={field.name}
@@ -138,7 +141,7 @@ export function SignUpTanstack() {
                     const show =
                       enabled.password &&
                       !!messageOf('password') &&
-                      (field.state.meta.isTouched || submitAttempted);
+                      (field.state.meta.isBlurred || submitAttempted);
                     return (
                       <PInputPassword
                         name={field.name}
@@ -165,7 +168,7 @@ export function SignUpTanstack() {
                     const show =
                       enabled.confirmPassword &&
                       !!messageOf('confirmPassword') &&
-                      (field.state.meta.isTouched || submitAttempted);
+                      (field.state.meta.isBlurred || submitAttempted);
                     return (
                       <PInputPassword
                         name={field.name}
