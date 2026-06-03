@@ -10,19 +10,24 @@ import { test, expect, type Page } from '@playwright/test';
  */
 
 const REACT = 'http://localhost:5173';
+const VUE = 'http://localhost:5174';
 const ANGULAR = 'http://localhost:4200';
 
-type Form = 'reducer' | 'tanstack' | 'rhf';
 type AppTarget = { url: string; tab: number | null };
 
-// The React app shows one form at a time via a PTabsBar (tab 0/1/2); Angular
-// shows its single form (`tab: null` = nothing to click).
-const APPS: Record<'angular' | Form, AppTarget> = {
-  angular: { url: ANGULAR, tab: null },
-  reducer: { url: REACT, tab: 0 },
-  tanstack: { url: REACT, tab: 1 },
-  rhf: { url: REACT, tab: 2 },
-};
+// Angular shows its single form (`tab: null`). The React and Vue apps each show
+// one form at a time via a PTabsBar — the tab index selects the variant.
+const ANGULAR_APP: AppTarget = { url: ANGULAR, tab: null };
+
+// Each entry is compared, scenario by scenario, against the Angular form.
+const TARGETS: { name: string; target: AppTarget }[] = [
+  { name: 'react-reducer', target: { url: REACT, tab: 0 } },
+  { name: 'react-tanstack', target: { url: REACT, tab: 1 } },
+  { name: 'react-rhf', target: { url: REACT, tab: 2 } },
+  { name: 'vue-reactivity', target: { url: VUE, tab: 0 } },
+  { name: 'vue-veevalidate', target: { url: VUE, tab: 1 } },
+  { name: 'vue-tanstack', target: { url: VUE, tab: 2 } },
+];
 
 // Injected into the page. Captures the state a user actually sees — including
 // the rendered validation message from the PDS input shadow DOM (#message),
@@ -61,7 +66,7 @@ type Step =
   | { action: 'blur'; label: string; wait?: number }
   | { action: 'submit'; wait?: number }
   | { action: 'cancel'; wait?: number };
-type Scenario = { name: string; steps: Step[] };
+type Scenario = { name: string; steps: Step[]; ignore?: string[] };
 
 // The `HELPERS` script defines `window.__h` in the page context.
 declare global {
@@ -76,8 +81,12 @@ declare global {
 
 const set = (label: string, value: string): Step => ({ action: 'set', label, value });
 const blur = (label: string): Step => ({ action: 'blur', label });
-const submit = (wait = 1300): Step => ({ action: 'submit', wait });
-const cancel = (): Step => ({ action: 'cancel', wait: 300 });
+// A step with an explicit `wait` is sampled at that fixed time (for intrinsic
+// timing — the loading window and the 1s toast/banner). Steps without `wait`
+// settle: the runner polls until the rendered snapshot stops changing.
+const submit = (wait?: number): Step =>
+  wait != null ? { action: 'submit', wait } : { action: 'submit' };
+const cancel = (): Step => ({ action: 'cancel' });
 const EMAIL = 'test@example.com';
 const PW = 'Password1';
 
@@ -155,20 +164,29 @@ const SCENARIOS: Scenario[] = [
     name: 'distinctUntilChanged-same-value-no-reset',
     steps: [set('E-mail', EMAIL), set('Password', PW), set('E-mail', EMAIL)],
   },
-  { name: 'submit-invalid-marks-touched', steps: [set('E-mail', EMAIL), submit(300)] },
+  { name: 'submit-invalid-marks-touched', steps: [set('E-mail', EMAIL), submit()] },
   {
     name: 'submit-shows-loading',
     steps: [set('E-mail', EMAIL), set('Password', PW), set('Confirm password', PW), submit(350)],
   },
+  // 1st valid submit (odd) → success toast.
   {
-    name: 'submit-valid-toast-then-banner',
+    name: 'submit-valid-success-toast',
+    steps: [set('E-mail', EMAIL), set('Password', PW), set('Confirm password', PW), submit(1500)],
+  },
+  // 2nd valid submit (even) → error banner. `toastSuccess` is ignored here: the
+  // first submit's toast auto-dismisses on a timer, so whether it's still
+  // visible at this snapshot is non-deterministic across apps.
+  {
+    name: 'submit-valid-error-banner',
     steps: [
       set('E-mail', EMAIL),
       set('Password', PW),
       set('Confirm password', PW),
-      submit(1300),
-      submit(1300),
+      submit(1500),
+      submit(1500),
     ],
+    ignore: ['toastSuccess'],
   },
   {
     name: 'cancel-resets',
@@ -176,41 +194,97 @@ const SCENARIOS: Scenario[] = [
   },
 ];
 
+const snapshot = (page: Page) => page.evaluate(() => window.__h.snapshot());
+
+// Poll until the rendered snapshot is stable, then return it. Used for
+// synchronous state changes. Two guards make this robust under parallel load:
+//   - a minimum elapsed time, so we never return the *pre-change* state before
+//     a delayed blur→render has had a chance to occur;
+//   - several consecutive equal reads, so a mid-render frame can't look settled.
+const INTERVAL = 60;
+const MIN_ELAPSED = 360;
+const STABLE_READS = 3;
+async function settle(page: Page): Promise<unknown> {
+  let previous = JSON.stringify(await snapshot(page));
+  let stable = 0;
+  for (let i = 1; i <= 60; i++) {
+    await page.waitForTimeout(INTERVAL);
+    const current = JSON.stringify(await snapshot(page));
+    stable = current === previous ? stable + 1 : 0;
+    previous = current;
+    if (stable >= STABLE_READS && i * INTERVAL >= MIN_ELAPSED) return JSON.parse(current);
+  }
+  return JSON.parse(previous);
+}
+
+// Resolve once the active form is genuinely interactive: all three PDS inputs
+// upgraded (shadow DOM rendered) and e-mail enabled. Guards against sampling a
+// half-rendered page under parallel load (which yielded impossible states like
+// a disabled e-mail field).
+async function waitReady(page: Page): Promise<void> {
+  await page.waitForFunction(
+    () => {
+      const inputs = [...document.querySelectorAll('p-input-email,p-input-password')] as Array<
+        HTMLElement & { label?: string; disabled?: boolean }
+      >;
+      if (inputs.length < 3) return false;
+      const email = inputs.find(
+        (h) => (h.label || h.getAttribute('label') || '').toLowerCase() === 'e-mail',
+      );
+      return !!(email && email.disabled === false && email.shadowRoot?.querySelector('#message'));
+    },
+    null,
+    { timeout: 20_000 },
+  );
+}
+
 async function runScenario(page: Page, app: AppTarget, scenario: Scenario): Promise<unknown[]> {
   await page.addInitScript({ content: HELPERS });
   await page.goto(app.url, { waitUntil: 'domcontentloaded' });
-  await page
-    .waitForFunction(() => document.querySelectorAll('p-input-email').length >= 1, null, {
-      timeout: 15_000,
-    })
-    .catch(() => {});
-  await page.waitForTimeout(800);
+  await waitReady(page);
   if (app.tab !== null) {
     await page.evaluate((i) => window.__h.clickTab(i), app.tab);
-    await page.waitForTimeout(400);
+    await waitReady(page);
   }
-  const snaps: unknown[] = [await page.evaluate(() => window.__h.snapshot())];
+  const snaps: unknown[] = [await settle(page)];
   for (const step of scenario.steps) {
     await page.evaluate((s) => window.__h.act(s), step);
-    await page.waitForTimeout(step.wait ?? 200);
-    snaps.push(await page.evaluate(() => window.__h.snapshot()));
+    // Fixed sample for intrinsic-timing steps (loading window, 1s toast/banner);
+    // otherwise wait for the snapshot to settle.
+    if (step.wait != null) {
+      await page.waitForTimeout(step.wait);
+      snaps.push(await snapshot(page));
+    } else {
+      snaps.push(await settle(page));
+    }
   }
   return snaps;
 }
 
-const FORMS: Form[] = ['reducer', 'tanstack', 'rhf'];
+// Drop any per-scenario ignored keys (e.g. `toastSuccess`) from every snapshot
+// before comparing.
+function stripIgnored(snaps: unknown[], ignore: string[] = []): unknown[] {
+  if (ignore.length === 0) return snaps;
+  return snaps.map((snap) => {
+    const copy = { ...(snap as Record<string, unknown>) };
+    for (const key of ignore) delete copy[key];
+    return copy;
+  });
+}
 
-for (const form of FORMS) {
-  test.describe(`${form} form matches Angular`, () => {
+for (const { name, target } of TARGETS) {
+  test.describe(`${name} matches Angular`, () => {
     for (const scenario of SCENARIOS) {
       test(scenario.name, async ({ browser }) => {
         const context = await browser.newContext();
         const angularPage = await context.newPage();
-        const reactPage = await context.newPage();
-        const reference = await runScenario(angularPage, APPS.angular, scenario);
-        const actual = await runScenario(reactPage, APPS[form], scenario);
+        const candidatePage = await context.newPage();
+        const reference = await runScenario(angularPage, ANGULAR_APP, scenario);
+        const actual = await runScenario(candidatePage, target, scenario);
         await context.close();
-        expect(actual).toEqual(reference);
+        expect(stripIgnored(actual, scenario.ignore)).toEqual(
+          stripIgnored(reference, scenario.ignore),
+        );
       });
     }
   });

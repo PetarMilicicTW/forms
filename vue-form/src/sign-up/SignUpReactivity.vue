@@ -1,0 +1,177 @@
+<script setup lang="ts">
+import { computed, reactive, ref } from 'vue';
+import {
+  PBanner,
+  PButton,
+  PHeading,
+  PInputEmail,
+  PInputPassword,
+  useToastManager,
+} from '@porsche-design-system/components-vue';
+import { signUpSchema } from './sign-up-schema';
+
+type Field = 'email' | 'password' | 'confirmPassword';
+
+const { addMessage } = useToastManager();
+
+const values = reactive<Record<Field, string>>({ email: '', password: '', confirmPassword: '' });
+const dirty = reactive<Record<Field, boolean>>({
+  email: false,
+  password: false,
+  confirmPassword: false,
+});
+const blurred = reactive<Record<Field, boolean>>({
+  email: false,
+  password: false,
+  confirmPassword: false,
+});
+const submitAttempted = ref(false);
+const isSubmitting = ref(false);
+const banner = reactive({ open: false, heading: '', description: '', state: 'info' as const });
+let submitCount = 0;
+
+// Validation is derived from the current values on every change (like the
+// Angular form), so a corrected field clears its error immediately.
+const issues = computed(() => {
+  const result = signUpSchema.safeParse(values);
+  return result.success ? [] : result.error.issues;
+});
+const messageOf = (field: Field): string =>
+  issues.value.find((issue) => issue.path[0] === field)?.message ?? '';
+
+const emailValid = computed(() => !messageOf('email'));
+const passwordValid = computed(() => emailValid.value && !messageOf('password'));
+// Cascade: password unlocks once email is valid, confirm once password is valid.
+const enabled = computed<Record<Field, boolean>>(() => ({
+  email: true,
+  password: emailValid.value,
+  confirmPassword: passwordValid.value,
+}));
+
+const showError = (field: Field): boolean =>
+  enabled.value[field] && !!messageOf(field) && (blurred[field] || submitAttempted.value);
+const stateOf = (field: Field) => (showError(field) ? 'error' : 'none');
+const messageFor = (field: Field) => (showError(field) ? messageOf(field) : '');
+
+function resetField(field: Field): void {
+  values[field] = '';
+  dirty[field] = false;
+  blurred[field] = false;
+}
+
+function onChange(field: Field, value: string): void {
+  if (value === values[field]) return; // distinctUntilChanged
+  values[field] = value;
+  dirty[field] = true;
+  // Editing a field clears any dirty downstream fields, mirroring the Angular cascade.
+  if (field === 'email' && dirty.password) {
+    resetField('password');
+    resetField('confirmPassword');
+  } else if (field === 'password' && dirty.confirmPassword) {
+    resetField('confirmPassword');
+  }
+}
+
+function onBlur(field: Field): void {
+  blurred[field] = true;
+}
+
+function submit(): void {
+  if (!signUpSchema.safeParse(values).success) {
+    submitAttempted.value = true;
+    return;
+  }
+  isSubmitting.value = true;
+  window.setTimeout(() => {
+    submitCount++;
+    isSubmitting.value = false;
+    if (submitCount % 2 === 1) {
+      addMessage({ text: 'Fake success', state: 'success' });
+    } else {
+      Object.assign(banner, {
+        open: true,
+        heading: 'Error',
+        description: 'Fake error',
+        state: 'error',
+      });
+    }
+  }, 1000);
+}
+
+function cancel(): void {
+  resetField('email');
+  resetField('password');
+  resetField('confirmPassword');
+  submitAttempted.value = false;
+}
+
+function dismissBanner(): void {
+  banner.open = false;
+}
+</script>
+
+<template>
+  <div class="flex flex-col gap-4">
+    <PHeading>Sign up</PHeading>
+
+    <form
+      class="flex w-[400px] min-w-[240px] max-w-[90dvw] flex-col gap-8"
+      novalidate
+      @submit.prevent="submit"
+    >
+      <PInputEmail
+        name="email"
+        label="E-mail"
+        :required="true"
+        :value="values.email"
+        :disabled="!enabled.email"
+        :message="messageFor('email')"
+        :state="stateOf('email')"
+        @update:value="(v: string) => onChange('email', v)"
+        @blur="() => onBlur('email')"
+      />
+
+      <PInputPassword
+        name="password"
+        label="Password"
+        autoComplete="new-password"
+        :toggle="true"
+        :required="true"
+        :value="values.password"
+        :disabled="!enabled.password"
+        :message="messageFor('password')"
+        :state="stateOf('password')"
+        @update:value="(v: string) => onChange('password', v)"
+        @blur="() => onBlur('password')"
+      />
+
+      <PInputPassword
+        name="confirmPassword"
+        label="Confirm password"
+        autoComplete="new-password"
+        :toggle="true"
+        :required="true"
+        :value="values.confirmPassword"
+        :disabled="!enabled.confirmPassword"
+        :message="messageFor('confirmPassword')"
+        :state="stateOf('confirmPassword')"
+        @update:value="(v: string) => onChange('confirmPassword', v)"
+        @blur="() => onBlur('confirmPassword')"
+      />
+
+      <div class="flex justify-end gap-4">
+        <PButton type="button" variant="secondary" @click="cancel">Cancel</PButton>
+        <PButton type="submit" :loading="isSubmitting">Submit</PButton>
+      </div>
+    </form>
+
+    <PBanner
+      :open="banner.open"
+      :heading="banner.heading"
+      heading-tag="h3"
+      :description="banner.description"
+      :state="banner.state"
+      @dismiss="dismissBanner"
+    />
+  </div>
+</template>
