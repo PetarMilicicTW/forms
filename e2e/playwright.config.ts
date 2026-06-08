@@ -39,7 +39,7 @@ export default defineConfig({
       timeout: 120_000,
     },
     {
-      command: 'npm --prefix ../angular-form start',
+      command: 'npm --prefix ../angular-form run dev',
       url: 'http://localhost:4200',
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
