@@ -1,3 +1,7 @@
+<p-text class="change-detection-cycle-count">
+  Change Detection Cycles: {{ getChangeDetectionCycleCount() }}
+</p-text>
+
 <p-heading>Sign up</p-heading>
 
 <form class="form" [formGroup]="form" (ngSubmit)="submit()">

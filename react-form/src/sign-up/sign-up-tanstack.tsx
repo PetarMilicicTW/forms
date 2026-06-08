@@ -4,6 +4,7 @@ import {
   PHeading,
   PInputEmail,
   PInputPassword,
+  PText,
   useToastManager,
 } from '@porsche-design-system/components-react';
 import { useForm } from '@tanstack/react-form';
@@ -28,6 +29,15 @@ export function SignUpTanstack() {
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const submitCount = useRef(0);
+
+  const changeDetectionCycleCount = useRef(0);
+  const getChangeDetectionCycleCount = () => {
+    ++changeDetectionCycleCount.current;
+    // in StrictMode React double renders components in development
+    return import.meta.env.DEV
+      ? changeDetectionCycleCount.current / 2
+      : changeDetectionCycleCount.current;
+  };
 
   // No TanStack validators: validation is derived from the current values on
   // every render (like the Angular form), which avoids TanStack's per-event
@@ -57,7 +67,12 @@ export function SignUpTanstack() {
       const result = await fakeSubmit();
       addMessage({ text: result, state: 'success' });
     } catch (error) {
-      setBanner({ open: true, heading: 'Error', description: (error as Error).message, state: 'error' });
+      setBanner({
+        open: true,
+        heading: 'Error',
+        description: (error as Error).message,
+        state: 'error',
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -70,6 +85,10 @@ export function SignUpTanstack() {
 
   return (
     <div className="flex flex-col gap-4">
+      <PText className="fixed top-4 right-4">
+        Change Detection Cycles: {getChangeDetectionCycleCount()}
+      </PText>
+
       <PHeading>Sign up</PHeading>
 
       <form

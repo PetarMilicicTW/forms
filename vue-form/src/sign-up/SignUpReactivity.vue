@@ -1,18 +1,22 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue';
 import {
   PBanner,
   PButton,
   PHeading,
   PInputEmail,
   PInputPassword,
+  PText,
   useToastManager,
 } from '@porsche-design-system/components-vue';
+import { computed, reactive, ref } from 'vue';
 import { signUpSchema } from './sign-up-schema';
 
 type Field = 'email' | 'password' | 'confirmPassword';
 
 const { addMessage } = useToastManager();
+
+let changeDetectionCycleCount = 0;
+const getChangeDetectionCycleCount = () => ++changeDetectionCycleCount;
 
 const values = reactive<Record<Field, string>>({ email: '', password: '', confirmPassword: '' });
 const dirty = reactive<Record<Field, boolean>>({
@@ -121,6 +125,10 @@ function dismissBanner(): void {
 
 <template>
   <div class="flex flex-col gap-4">
+    <PText className="fixed top-4 right-4">
+      Change Detection Cycles: {{ getChangeDetectionCycleCount() }}
+    </PText>
+
     <PHeading>Sign up</PHeading>
 
     <form

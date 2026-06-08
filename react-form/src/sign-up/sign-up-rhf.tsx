@@ -1,14 +1,15 @@
+import { zodResolver } from '@hookform/resolvers/zod';
 import {
   PBanner,
   PButton,
   PHeading,
   PInputEmail,
   PInputPassword,
+  PText,
   useToastManager,
 } from '@porsche-design-system/components-react';
 import { useRef, useState } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
 import type { BannerMessage } from '../shared/banner-types';
 import { signUpSchema, type SignUpValues } from './sign-up-schema';
 
@@ -21,6 +22,15 @@ export function SignUpRhf() {
     state: 'info',
   });
   const submitCount = useRef(0);
+
+  const changeDetectionCycleCount = useRef(0);
+  const getChangeDetectionCycleCount = () => {
+    ++changeDetectionCycleCount.current;
+    // in StrictMode React double renders components in development
+    return import.meta.env.DEV
+      ? changeDetectionCycleCount.current / 2
+      : changeDetectionCycleCount.current;
+  };
 
   const {
     control,
@@ -63,12 +73,21 @@ export function SignUpRhf() {
       const result = await fakeSubmit();
       addMessage({ text: result, state: 'success' });
     } catch (error) {
-      setBanner({ open: true, heading: 'Error', description: (error as Error).message, state: 'error' });
+      setBanner({
+        open: true,
+        heading: 'Error',
+        description: (error as Error).message,
+        state: 'error',
+      });
     }
   };
 
   return (
     <div className="flex flex-col gap-4">
+      <PText className="fixed top-4 right-4">
+        Change Detection Cycles: {getChangeDetectionCycleCount()}
+      </PText>
+
       <PHeading>Sign up</PHeading>
 
       <form

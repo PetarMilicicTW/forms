@@ -26,9 +26,14 @@ export class SignUpComponent {
   });
   private submitCount = 0;
   readonly form = this.buildForm();
+  private changeDetectionCycleCount = 0;
 
   ngOnDestroy(): void {
     this.subSink.unsubscribe();
+  }
+
+  getChangeDetectionCycleCount(): number {
+    return ++this.changeDetectionCycleCount;
   }
 
   cancel(): void {

@@ -1,19 +1,23 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue';
-import { useForm } from '@tanstack/vue-form';
 import {
   PBanner,
   PButton,
   PHeading,
   PInputEmail,
   PInputPassword,
+  PText,
   useToastManager,
 } from '@porsche-design-system/components-vue';
+import { useForm } from '@tanstack/vue-form';
+import { computed, reactive, ref } from 'vue';
 import { signUpSchema } from './sign-up-schema';
 
 type Field = 'email' | 'password' | 'confirmPassword';
 
 const { addMessage } = useToastManager();
+
+let changeDetectionCycleCount = 0;
+const getChangeDetectionCycleCount = () => ++changeDetectionCycleCount;
 
 // No TanStack validators: validation is derived from the live values (avoids
 // TanStack's per-event error slots). Errors gate on `isBlurred`, NOT `isTouched`
@@ -100,6 +104,10 @@ function dismissBanner(): void {
 
 <template>
   <div class="flex flex-col gap-4">
+    <PText className="fixed top-4 right-4">
+      Change Detection Cycles: {{ getChangeDetectionCycleCount() }}
+    </PText>
+
     <PHeading>Sign up</PHeading>
 
     <form

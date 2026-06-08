@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { PorscheDesignSystemModule } from '@porsche-design-system/components-angular';
 import { SignUpComponent } from './sign-up/sign-up';
 
@@ -7,5 +7,6 @@ import { SignUpComponent } from './sign-up/sign-up';
   imports: [PorscheDesignSystemModule, SignUpComponent],
   templateUrl: './app.html',
   styleUrl: './app.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class App {}
