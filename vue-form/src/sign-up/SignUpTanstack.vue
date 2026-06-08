@@ -5,7 +5,6 @@ import {
   PHeading,
   PInputEmail,
   PInputPassword,
-  PText,
   useToastManager,
 } from '@porsche-design-system/components-vue';
 import { useForm } from '@tanstack/vue-form';
@@ -104,9 +103,18 @@ function dismissBanner(): void {
 
 <template>
   <div class="flex flex-col gap-4">
-    <PText className="fixed top-4 right-4">
+    <!--
+      Must be a plain element, not a <PText> (or any component) slot. Vue's
+      fine-grained reactivity only re-runs a child component's slot when that
+      child itself re-renders; since PText's props never change, its slot is
+      treated as stable and the counter would stay frozen at 1. React/Angular
+      differ here: they re-render children by default, so the equivalent slot
+      re-evaluates every cycle. A native element is patched on every re-render
+      of this component, so the function runs once per cycle as intended.
+    -->
+    <div class="fixed top-4 right-4">
       Change Detection Cycles: {{ getChangeDetectionCycleCount() }}
-    </PText>
+    </div>
 
     <PHeading>Sign up</PHeading>
 
