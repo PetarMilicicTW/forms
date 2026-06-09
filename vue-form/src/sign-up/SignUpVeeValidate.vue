@@ -8,7 +8,7 @@ import {
 } from '@porsche-design-system/components-vue';
 import { useForm } from 'vee-validate';
 import { reactive, ref } from 'vue';
-import { signUpSchema, type SignUpValues } from './sign-up-schema';
+import { type SignUpValues } from './sign-up-schema';
 import { useSignUpValidation, type Field } from './useSignUpValidation';
 import { useSignUpSubmit } from './useSignUpSubmit';
 
@@ -20,7 +20,6 @@ const getChangeDetectionCycleCount = () => ++changeDetectionCycleCount;
 // validation/`errors` don't reconcile cleanly with this form's cross-field
 // schema + custom cascade, so the schema is the single source of truth.
 const { values, setFieldValue, resetForm } = useForm<SignUpValues>({
-  validationSchema: signUpSchema,
   initialValues: { email: '', password: '', confirmPassword: '' },
 });
 
