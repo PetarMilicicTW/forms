@@ -5,14 +5,10 @@ import {
   PHeading,
   PInputEmail,
   PInputPassword,
-  useToastManager,
 } from '@porsche-design-system/components-vue';
-import { computed, reactive, ref } from 'vue';
-import { signUpSchema } from './sign-up-schema';
-
-type Field = 'email' | 'password' | 'confirmPassword';
-
-const { addMessage } = useToastManager();
+import { reactive, ref } from 'vue';
+import { useSignUpValidation, type Field } from './useSignUpValidation';
+import { useSignUpSubmit } from './useSignUpSubmit';
 
 let changeDetectionCycleCount = 0;
 const getChangeDetectionCycleCount = () => ++changeDetectionCycleCount;
@@ -29,27 +25,11 @@ const blurred = reactive<Record<Field, boolean>>({
   confirmPassword: false,
 });
 const submitAttempted = ref(false);
-const isSubmitting = ref(false);
-const banner = reactive({ open: false, heading: '', description: '', state: 'info' as const });
-let submitCount = 0;
 
-// Validation is derived from the current values on every change (like the
-// Angular form), so a corrected field clears its error immediately.
-const issues = computed(() => {
-  const result = signUpSchema.safeParse(values);
-  return result.success ? [] : result.error.issues;
+const { messageOf, enabled, isValid } = useSignUpValidation(() => values);
+const { isSubmitting, banner, submit, dismissBanner } = useSignUpSubmit(isValid, () => {
+  submitAttempted.value = true;
 });
-const messageOf = (field: Field): string =>
-  issues.value.find((issue) => issue.path[0] === field)?.message ?? '';
-
-const emailValid = computed(() => !messageOf('email'));
-const passwordValid = computed(() => emailValid.value && !messageOf('password'));
-// Cascade: password unlocks once email is valid, confirm once password is valid.
-const enabled = computed<Record<Field, boolean>>(() => ({
-  email: true,
-  password: emailValid.value,
-  confirmPassword: passwordValid.value,
-}));
 
 const showError = (field: Field): boolean =>
   enabled.value[field] && !!messageOf(field) && (blurred[field] || submitAttempted.value);
@@ -79,46 +59,11 @@ function onBlur(field: Field): void {
   blurred[field] = true;
 }
 
-function fakeSubmit(): Promise<string> {
-  return new Promise((resolve, reject) => {
-    window.setTimeout(() => {
-      submitCount++;
-      if (submitCount % 2 === 1) resolve('Fake success');
-      else reject(new Error('Fake error'));
-    }, 1000);
-  });
-}
-
-async function submit(): Promise<void> {
-  if (!signUpSchema.safeParse(values).success) {
-    submitAttempted.value = true;
-    return;
-  }
-  isSubmitting.value = true;
-  try {
-    const result = await fakeSubmit();
-    addMessage({ text: result, state: 'success' });
-  } catch (error) {
-    Object.assign(banner, {
-      open: true,
-      heading: 'Error',
-      description: (error as Error).message,
-      state: 'error',
-    });
-  } finally {
-    isSubmitting.value = false;
-  }
-}
-
 function cancel(): void {
   resetField('email');
   resetField('password');
   resetField('confirmPassword');
   submitAttempted.value = false;
-}
-
-function dismissBanner(): void {
-  banner.open = false;
 }
 </script>
 

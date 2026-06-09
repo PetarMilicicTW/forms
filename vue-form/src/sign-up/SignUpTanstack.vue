@@ -5,15 +5,11 @@ import {
   PHeading,
   PInputEmail,
   PInputPassword,
-  useToastManager,
 } from '@porsche-design-system/components-vue';
 import { useForm } from '@tanstack/vue-form';
-import { computed, reactive, ref } from 'vue';
-import { signUpSchema } from './sign-up-schema';
-
-type Field = 'email' | 'password' | 'confirmPassword';
-
-const { addMessage } = useToastManager();
+import { ref } from 'vue';
+import { useSignUpValidation, type Field } from './useSignUpValidation';
+import { useSignUpSubmit } from './useSignUpSubmit';
 
 let changeDetectionCycleCount = 0;
 const getChangeDetectionCycleCount = () => ++changeDetectionCycleCount;
@@ -26,24 +22,12 @@ const form = useForm({
 });
 
 const submitAttempted = ref(false);
-const isSubmitting = ref(false);
-const banner = reactive({ open: false, heading: '', description: '', state: 'info' as const });
-let submitCount = 0;
 
 const formValues = form.useStore((state) => state.values);
-const issues = computed(() => {
-  const result = signUpSchema.safeParse(formValues.value);
-  return result.success ? [] : result.error.issues;
+const { messageOf, enabled, isValid } = useSignUpValidation(() => formValues.value);
+const { isSubmitting, banner, submit, dismissBanner } = useSignUpSubmit(isValid, () => {
+  submitAttempted.value = true;
 });
-const messageOf = (field: Field) =>
-  issues.value.find((issue) => issue.path[0] === field)?.message ?? '';
-const emailValid = computed(() => !messageOf('email'));
-const passwordValid = computed(() => emailValid.value && !messageOf('password'));
-const enabled = computed<Record<Field, boolean>>(() => ({
-  email: true,
-  password: emailValid.value,
-  confirmPassword: passwordValid.value,
-}));
 
 const showError = (field: Field, isBlurred: boolean): boolean =>
   enabled.value[field] && !!messageOf(field) && (isBlurred || submitAttempted.value);
@@ -60,44 +44,9 @@ function onChange(field: Field, value: string): void {
   }
 }
 
-function fakeSubmit(): Promise<string> {
-  return new Promise((resolve, reject) => {
-    window.setTimeout(() => {
-      submitCount++;
-      if (submitCount % 2 === 1) resolve('Fake success');
-      else reject(new Error('Fake error'));
-    }, 1000);
-  });
-}
-
-async function submit(): Promise<void> {
-  if (!signUpSchema.safeParse(form.state.values).success) {
-    submitAttempted.value = true;
-    return;
-  }
-  isSubmitting.value = true;
-  try {
-    const result = await fakeSubmit();
-    addMessage({ text: result, state: 'success' });
-  } catch (error) {
-    Object.assign(banner, {
-      open: true,
-      heading: 'Error',
-      description: (error as Error).message,
-      state: 'error',
-    });
-  } finally {
-    isSubmitting.value = false;
-  }
-}
-
 function cancel(): void {
   form.reset();
   submitAttempted.value = false;
-}
-
-function dismissBanner(): void {
-  banner.open = false;
 }
 </script>
 
